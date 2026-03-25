@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Capitalism — Terminal Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #39ff14;
+    --dim-green: #1a7a00;
+    --dark-green: #0d3b00;
+    --bg: #050f02;
+    --warn: #ffcc00;
+    --danger: #ff3c3c;
+    --glow: 0 0 8px #39ff14aa;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 3px,
+      rgba(0,0,0,0.18) 3px,
+      rgba(0,0,0,0.18) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.6) 100%);
+    pointer-events: none;
+    z-index: 99;
+    animation: flicker 8s infinite;
+  }
+
+  @keyframes flicker {
+    0%, 98%, 100% { opacity: 1; }
+    99% { opacity: 0.85; }
+  }
+
+  #terminal {
+    width: 100%;
+    max-width: 680px;
+    background: #020a01;
+    border: 1px solid var(--dim-green);
+    border-radius: 4px;
+    box-shadow: 0 0 30px #39ff1430, 0 0 80px #39ff1410, inset 0 0 30px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    height: min(600px, 90vh);
+  }
+
+  #titlebar {
+    background: var(--dark-green);
+    border-bottom: 1px solid var(--dim-green);
+    padding: 6px 14px;
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    letter-spacing: 3px;
+    color: var(--green);
+    text-shadow: var(--glow);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--dim-green); }
+
+  #output {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    line-height: 1.7;
+    scroll-behavior: smooth;
+  }
+
+  #output::-webkit-scrollbar { width: 4px; }
+  #output::-webkit-scrollbar-track { background: transparent; }
+  #output::-webkit-scrollbar-thumb { background: var(--dim-green); border-radius: 2px; }
+
+  .line { display: block; animation: fadein 0.1s ease; white-space: pre-wrap; word-break: break-word; }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+  .line.prompt { color: var(--green); }
+  .line.info    { color: #57e832; }
+  .line.warn    { color: var(--warn); }
+  .line.danger  { color: var(--danger); text-shadow: 0 0 8px var(--danger); }
+  .line.muted   { color: var(--dim-green); }
+  .line.success { color: #a8ff78; }
+  .line.title   { color: var(--green); font-family: 'VT323', monospace; font-size: 22px; letter-spacing: 2px; text-shadow: var(--glow); }
+
+  #stats-bar {
+    background: var(--dark-green);
+    border-top: 1px solid var(--dim-green);
+    border-bottom: 1px solid var(--dim-green);
+    padding: 8px 16px;
+    display: flex;
+    gap: 24px;
+    font-size: 13px;
+    letter-spacing: 1px;
+  }
+
+  .stat { display: flex; align-items: center; gap: 6px; }
+  .stat-label { color: var(--dim-green); }
+  .stat-val { color: var(--green); font-size: 15px; font-weight: bold; text-shadow: var(--glow); min-width: 28px; }
+  .stat-val.danger { color: var(--danger); text-shadow: 0 0 8px var(--danger); }
+  .stat-val.warn { color: var(--warn); }
+
+  #input-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    gap: 8px;
+    border-top: 1px solid var(--dim-green);
+  }
+
+  #prompt-symbol { color: var(--dim-green); user-select: none; font-size: 16px; }
+
+  #cmd-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    caret-color: var(--green);
+    text-shadow: var(--glow);
+  }
+
+  #cmd-input::placeholder { color: var(--dim-green); }
+
+  #buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid #0d2600;
+  }
+
+  .btn {
+    background: transparent;
+    border: 1px solid var(--dim-green);
+    color: var(--dim-green);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    padding: 4px 12px;
+    cursor: pointer;
+    border-radius: 2px;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+  }
+
+  .btn:hover {
+    background: var(--dark-green);
+    color: var(--green);
+    border-color: var(--green);
+    box-shadow: var(--glow);
+  }
+
+  .btn:active { transform: scale(0.96); }
+</style>
+</head>
+<body>
+
+<div id="terminal">
+  <div id="titlebar">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    &nbsp;CAPITALISM v1.2
+  </div>
+
+  <div id="stats-bar">
+    <div class="stat"><span class="stat-label">$</span><span class="stat-val" id="s-money">0</span></div>
+    <div class="stat"><span class="stat-label">⚡</span><span class="stat-val" id="s-energy">5</span></div>
+    <div class="stat"><span class="stat-label">DEBT</span><span class="stat-val" id="s-cost">0</span></div>
+  </div>
+
+  <div id="output"></div>
+
+  <div id="input-row">
+    <span id="prompt-symbol">&gt;</span>
+    <input id="cmd-input" type="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="type a command..." />
+  </div>
+
+  <div id="buttons">
+    <button class="btn" onclick="run('work')">work</button>
+    <button class="btn" onclick="run('sleep')">sleep</button>
+    <button class="btn" onclick="run('gamble')">gamble</button>
+    <button class="btn" onclick="run('pay')">pay</button>
+    <button class="btn" onclick="run('help')">help</button>
+    <button class="btn" onclick="run('fullscreen')">fullscreen</button>
+    <button class="btn" onclick="run('quit')">quit</button>
+  </div>
+</div>
+
+<script>
+  let money = 0, energy = 5, cost = 0;
+  const out = document.getElementById('output');
+  const input = document.getElementById('cmd-input');
+
+  function print(text, cls = 'prompt') {
+    const span = document.createElement('span');
+    span.className = 'line ' + cls;
+    span.textContent = text;
+    out.appendChild(span);
+    out.scrollTop = out.scrollHeight;
+  }
+
+  function updateStats() {
+    const m = document.getElementById('s-money');
+    const e = document.getElementById('s-energy');
+    const c = document.getElementById('s-cost');
+    m.textContent = money;
+    e.textContent = energy;
+    c.textContent = cost;
+    m.className = 'stat-val';
+    e.className = 'stat-val' + (energy <= 1 ? ' warn' : '');
+    c.className = 'stat-val' + (cost > 20 ? ' danger' : cost > 15 ? ' warn' : '');
+  }
+
+  function run(cmd) {
+    if (!cmd) return;
+    print('> ' + cmd, 'muted');
+
+    switch (cmd.trim().toLowerCase()) {
+      case 'work':
+        if (energy < 1) {
+          print('Too tired to work!', 'warn');
+        } else {
+          money++;
+          energy--;
+          print('You worked.  +1 money, -1 energy', 'success');
+        }
+        break;
+
+      case 'sleep':
+        energy += 2;
+        cost++;
+        print('You slept.   +2 energy, +1 debt', 'info');
+        break;
+
+      case 'gamble':
+        if (money < 1) {
+          print('Not enough money!', 'warn');
+        } else {
+          if (Math.random() < 0.5) {
+            money *= 2;
+            print('You win! Money doubled to $' + money, 'success');
+          } else {
+            money = 0;
+            print('You lose! Money set to $0', 'danger');
+          }
+        }
+        break;
+
+      case 'pay':
+        if (money < cost) {
+          print(`Not enough money! Need ${cost}, have ${money}.`, 'warn');
+        } else {
+          money -= cost;
+          print(`Debt paid!   -${cost} money`, 'success');
+          cost = 0;
+        }
+        break;
+
+      case 'help':
+        print('Commands: work | sleep | gamble | pay | quit', 'muted');
+        print('  work   — earn $1, costs 1 energy', 'muted');
+        print('  sleep  — restore 2 energy, adds 1 debt', 'muted');
+        print('  gamble — 50/50: double your money or lose it all', 'muted');
+        print('  fullscreen — toggle fullscreen mode', 'muted');
+        break;
+
+      case 'fullscreen':
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen();
+          print('Entering fullscreen. Type fullscreen to exit.', 'info');
+        } else {
+          document.exitFullscreen();
+          print('Exiting fullscreen.', 'info');
+        }
+        break;
+
+      case 'quit':
+        print('Goodbye. The system continues without you.', 'muted');
+        input.disabled = true;
+        document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+        return;
+
+      default:
+        print('Unknown command. Type help for commands.', 'warn');
+    }
+
+    // Check bankruptcy
+    if (cost > 20) {
+      print('BANKRUPT! Debt exceeded 20. All money lost.', 'danger');
+      money = 0;
+    }
+
+    // Warnings
+    if (cost > 15 && cost <= 20) {
+      print(`WARNING: Debt at ${cost}/20 — pay soon or go bankrupt!`, 'warn');
+    }
+
+    updateStats();
+  }
+
+  // Keyboard input
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const val = input.value.trim();
+      input.value = '';
+      if (val) run(val);
+    }
+  });
+
+  // Boot sequence
+  function boot() {
+    print('--- CAPITALISM v1.2 ---', 'title');
+    print('A game about working, sleeping, and paying debt.', 'muted');
+    print('Commands: work, sleep, gamble, pay, help, quit', 'muted');
+    print('─'.repeat(48), 'muted');
+    updateStats();
+    input.focus();
+  }
+
+  boot();
+</script>
+</body>
+</html>
